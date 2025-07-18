@@ -1,163 +1,100 @@
 # Natural Language to SQL Converter
 
-A hackathon project that converts natural language questions into SQL queries using AI.
+This project provides a web-based tool that converts natural language questions into SQL queries using the HuggingFace Inference API.
 
 ## Features
 
-- Convert English questions to SQL queries
-- React frontend with a clean UI
+- Convert natural language questions to SQL queries
+- Multiple model options for SQL generation
+- React-based frontend with a clean UI
 - FastAPI backend with HuggingFace integration
-- Docker support for easy setup and deployment
 
 ## Project Structure
 
 ```
-├── frontend/            # React frontend
-├── backend/             # FastAPI backend
-├── docker-compose.yml   # Docker Compose configuration
-└── README.md            # This file
+.
+├── backend/                 # FastAPI server
+│   ├── main.py              # Main API code
+│   ├── test_token.py        # Script to test HF models
+│   ├── requirements.txt     # Python dependencies
+│   └── Dockerfile           # Docker config for backend
+├── frontend/                # React frontend
+│   ├── src/                 # React source code
+│   ├── package.json         # JS dependencies
+│   └── Dockerfile           # Docker config for frontend
+└── docker-compose.yml       # Docker Compose configuration
 ```
 
-## For Team Members: Getting Started
+## Available Models
 
-### Step 1: Clone the Repository
+The application supports multiple models for SQL generation through HuggingFace Inference API:
+
+1. **defog/sqlcoder-7b-2** (default) - Specialized SQL generation model
+2. **gaussalgo/T5-LM-Large-text2sql-spider** (small) - Lighter SQL model
+3. **codellama/CodeLlama-7b-Instruct-hf** - Code generation model adapted for SQL
+4. **budecosystem/sql-millennials-13b** - Large SQL generation model
+5. **motherduckdb/DuckDB-NSQL-7B-v0.1** - DuckDB's SQL generation model
+
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- HuggingFace API token (get one at https://huggingface.co/settings/tokens)
+
+### Running the Application
+
+1. Clone the repository
+2. Edit `docker-compose.yml` to add your HuggingFace API token:
+
+```yaml
+environment:
+  - HUGGINGFACE_API_TOKEN=your_token_here  # Replace with your actual token
+  - SELECTED_MODEL=default  # Options: default, small, codellama, sql_millennials, duckdb
+```
+
+3. Start the application:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/NLtoSQL.git
-cd NLtoSQL
+docker-compose up --build
 ```
 
-### Step 2: Set Up Your Environment
+4. Open your browser and navigate to http://localhost:3000
 
-#### Prerequisites
-- Docker and Docker Compose installed ([Get Docker](https://docs.docker.com/get-docker/))
-- Git installed ([Get Git](https://git-scm.com/downloads))
+### Testing the Models
 
-### Step 3: Configure and Run
+You can test which models are available and working with your API token by running:
 
-1. The team is using a **shared HuggingFace token**. It is already set in the `docker-compose.yml` file:
-   ```yaml
-   environment:
-     - HUGGINGFACE_API_TOKEN=your_shared_token_here
-   ```
-   **No need to change this unless the token is updated for the whole team.**
+```bash
+cd backend
+export HUGGINGFACE_API_TOKEN=your_token_here
+python test_token.py
+```
 
-2. Build and run with Docker:
-   ```bash
-   docker-compose up --build
-   ```
+This will attempt to generate SQL with each model and report which ones are working.
 
-3. Access the app:
-   - Frontend: http://localhost:3000
-   - Backend API docs: http://localhost:8000/docs
+### Configuring Models
 
-### Step 4: Test the Application
+You can select which model to use by changing the `SELECTED_MODEL` environment variable in `docker-compose.yml`:
 
-Try example questions like:
-- "Find all customers who joined after January 2023"
-- "What's the total sales for each product category?"
-- "List the top 5 customers by order amount"
+```yaml
+environment:
+  - SELECTED_MODEL=codellama  # Choose any of the available models
+```
 
-## Contributing to the Project
+Available options:
+- `default` (defog/sqlcoder-7b-2)
+- `small` (gaussalgo/T5-LM-Large-text2sql-spider)
+- `codellama` (codellama/CodeLlama-7b-Instruct-hf)
+- `sql_millennials` (budecosystem/sql-millennials-13b)
+- `duckdb` (motherduckdb/DuckDB-NSQL-7B-v0.1)
 
-### Making Changes
+## API Endpoints
 
-1. Create a new branch for your feature:
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-
-2. Make your changes
-
-3. Commit your changes:
-   ```bash
-   git add .
-   git commit -m "Description of your changes"
-   ```
-
-4. Push to GitHub:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-5. Create a Pull Request on GitHub
-
-### Development Without Docker
-
-If you prefer to develop without Docker, follow these instructions:
-
-#### Backend Setup
-
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   # On Windows
-   venv\Scripts\activate
-   # On macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. The team is using a shared HuggingFace token. Set it in your environment (if not running with Docker):
-   ```bash
-   # On Windows
-   set HUGGINGFACE_API_TOKEN=your_shared_token_here
-   # On macOS/Linux
-   export HUGGINGFACE_API_TOKEN=your_shared_token_here
-   ```
-
-5. Run the backend server:
-   ```bash
-   uvicorn main:app --reload
-   ```
-
-#### Frontend Setup
-
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Run the development server:
-   ```bash
-   npm start
-   ```
-
-4. Access the frontend at http://localhost:3000
-
-## Customizing the Database Schema
-
-To customize the database schema, edit the `schema` variable in `backend/main.py`.
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Docker container fails to start**
-   - Make sure ports 3000 and 8000 are not in use
-   - Check Docker logs: `docker-compose logs`
-
-2. **API calls failing**
-   - Verify the shared HuggingFace token is correct and not expired
-   - Check if you've exceeded the free API limits
-
-3. **Changes not reflecting**
-   - Rebuild the containers: `docker-compose up --build`
+- `GET /` - API status check
+- `GET /models` - List all available models and current selection
+- `POST /generate_sql` - Generate SQL from natural language question
 
 ## License
 
-MIT 
+This project is licensed under the MIT License. 

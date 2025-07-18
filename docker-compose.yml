@@ -5,8 +5,17 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G  # Less memory needed since we're not loading models
+        reservations:
+          memory: 1G
     environment:
-      - HUGGINGFACE_API_TOKEN=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  # Replace with your actual HuggingFace token
+      - USE_SMALL_MODEL=false
+      - HUGGINGFACE_API_TOKEN=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  # Replace with your actual token
+      - SELECTED_MODEL=sqlcoder  # Using defog/llama-3-sqlcoder-8b
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 300
   frontend:
     build: ./frontend
     ports:
@@ -15,4 +24,4 @@ services:
       - backend
     restart: unless-stopped
     environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8000  # For local development 
+      - REACT_APP_BACKEND_URL=http://localhost:8000 
