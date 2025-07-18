@@ -32,23 +32,15 @@ cd NLtoSQL
 #### Prerequisites
 - Docker and Docker Compose installed ([Get Docker](https://docs.docker.com/get-docker/))
 - Git installed ([Get Git](https://git-scm.com/downloads))
-- HuggingFace account (free) for API token
-
-#### Get a HuggingFace Token
-1. Sign up or log in at [huggingface.co](https://huggingface.co)
-2. Go to Settings → Access Tokens → New token (Read)
-3. Copy your token
 
 ### Step 3: Configure and Run
 
-1. Edit the `docker-compose.yml` file:
+1. The team is using a **shared HuggingFace token**. It is already set in the `docker-compose.yml` file:
    ```yaml
-   # Find this section
    environment:
-     - HUGGINGFACE_API_TOKEN=hf_dummy_token
-   
-   # Replace hf_dummy_token with your actual token
+     - HUGGINGFACE_API_TOKEN=your_shared_token_here
    ```
+   **No need to change this unless the token is updated for the whole team.**
 
 2. Build and run with Docker:
    ```bash
@@ -115,12 +107,12 @@ If you prefer to develop without Docker, follow these instructions:
    pip install -r requirements.txt
    ```
 
-4. Set your HuggingFace API token:
+4. The team is using a shared HuggingFace token. Set it in your environment (if not running with Docker):
    ```bash
    # On Windows
-   set HUGGINGFACE_API_TOKEN=your_token_here
+   set HUGGINGFACE_API_TOKEN=your_shared_token_here
    # On macOS/Linux
-   export HUGGINGFACE_API_TOKEN=your_token_here
+   export HUGGINGFACE_API_TOKEN=your_shared_token_here
    ```
 
 5. Run the backend server:
@@ -160,7 +152,7 @@ To customize the database schema, edit the `schema` variable in `backend/main.py
    - Check Docker logs: `docker-compose logs`
 
 2. **API calls failing**
-   - Verify your HuggingFace token is correct
+   - Verify the shared HuggingFace token is correct and not expired
    - Check if you've exceeded the free API limits
 
 3. **Changes not reflecting**
