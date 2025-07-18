@@ -9,6 +9,9 @@ COPY package.json package-lock.json ./
 # Install dependencies with specific flags for better reliability
 RUN npm ci --legacy-peer-deps
 
+# Install react-scripts explicitly
+RUN npm install react-scripts
+
 # Install additional TypeScript type declarations
 RUN npm install --save-dev @types/prismjs
 
@@ -18,8 +21,11 @@ COPY . .
 # Make sure we're using TypeScript files by removing any old .js files with .tsx counterparts
 RUN find src -name "*.js" ! -name "*.test.js" ! -name "setupTests.js" ! -name "reportWebVitals.js" -delete
 
-# Build the app using the explicit path to react-scripts in node_modules
-RUN ./node_modules/.bin/react-scripts build
+# List node_modules to debug
+RUN ls -la node_modules/.bin/
+
+# Build the app using node to execute the react-scripts directly
+RUN NODE_ENV=production node ./node_modules/react-scripts/scripts/build.js
 
 # Production image
 FROM node:18-alpine as prod
