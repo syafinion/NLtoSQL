@@ -6,7 +6,7 @@ services:
       - "8000:8000"
     restart: unless-stopped
     environment:
-      - HUGGINGFACE_API_TOKEN=hf_dummy_token  # Replace with your actual HuggingFace token
+      - HUGGINGFACE_API_TOKEN=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  # Replace with your actual HuggingFace token
   frontend:
     build: ./frontend
     ports:
