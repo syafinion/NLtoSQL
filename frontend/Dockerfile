@@ -5,7 +5,12 @@ WORKDIR /app
 
 # Copy package files first for better caching
 COPY package.json package-lock.json ./
-RUN npm install
+
+# Install dependencies with specific flags for better reliability
+RUN npm ci --legacy-peer-deps
+
+# Install react-scripts globally to ensure it's available
+RUN npm install -g react-scripts
 
 # Install additional TypeScript type declarations
 RUN npm install --save-dev @types/prismjs

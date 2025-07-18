@@ -13,7 +13,7 @@ services:
           memory: 1G
     environment:
       - USE_SMALL_MODEL=false
-      - HUGGINGFACE_API_TOKEN=your_access_token  # Replace with your actual token
+      - HUGGINGFACE_API_TOKEN=${HUGGINGFACE_API_TOKEN}  # Load from .env file
       - SELECTED_MODEL=sqlcoder  # Using defog/llama-3-sqlcoder-8b
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 300
   frontend:
