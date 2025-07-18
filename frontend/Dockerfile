@@ -18,8 +18,8 @@ COPY . .
 # Make sure we're using TypeScript files by removing any old .js files with .tsx counterparts
 RUN find src -name "*.js" ! -name "*.test.js" ! -name "setupTests.js" ! -name "reportWebVitals.js" -delete
 
-# Build the app using npx to ensure the locally installed react-scripts is used
-RUN npx react-scripts build
+# Build the app using the explicit path to react-scripts in node_modules
+RUN ./node_modules/.bin/react-scripts build
 
 # Production image
 FROM node:18-alpine as prod
