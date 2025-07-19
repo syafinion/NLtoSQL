@@ -41,7 +41,11 @@ const App: React.FC = () => {
   const [sql, setSql] = useState<string>("");
   const [explanation, setExplanation] = useState<string>("");
   const [visualization, setVisualization] = useState<string>("");
+  const [reasoningSteps, setReasoningSteps] = useState<string[]>([]);
+  const [queryResults, setQueryResults] = useState<string>("");
+  const [resultVisualization, setResultVisualization] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [executing, setExecuting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [modelUsed, setModelUsed] = useState<string>("");
   const [executionTime, setExecutionTime] = useState<number>(0);
@@ -52,6 +56,9 @@ const App: React.FC = () => {
   const [showHistoryPanel, setShowHistoryPanel] = useState<boolean>(false);
   const [showSchemaPanel, setShowSchemaPanel] = useState<boolean>(false);
   const [darkMode, setDarkMode] = useState<boolean>(true);
+  const [currentQueryId, setCurrentQueryId] = useState<string>("");
+  const [includeReasoning, setIncludeReasoning] = useState<boolean>(true);
+  const [executeQuery, setExecuteQuery] = useState<boolean>(false);
 
   // Fetch schemas and history when the component mounts
   useEffect(() => {
@@ -150,6 +157,9 @@ const App: React.FC = () => {
     setSql("");
     setExplanation("");
     setVisualization("");
+    setReasoningSteps([]);
+    setQueryResults("");
+    setResultVisualization("");
     
     try {
       // Show a loading message
@@ -162,7 +172,9 @@ const App: React.FC = () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             question,
-            schema_name: selectedSchema
+            schema_name: selectedSchema,
+            include_reasoning: includeReasoning,
+            execute_query: executeQuery
           }),
         },
         FETCH_TIMEOUT
@@ -178,6 +190,22 @@ const App: React.FC = () => {
       setVisualization(data.visualization_suggestion || "");
       setModelUsed(data.model);
       setExecutionTime(data.execution_time);
+      setCurrentQueryId(data.query_id);
+      
+      // Set reasoning steps if available
+      if (data.reasoning_steps && data.reasoning_steps.length > 0) {
+        setReasoningSteps(data.reasoning_steps);
+      }
+      
+      // Set results if available
+      if (data.results) {
+        setQueryResults(data.results);
+      }
+      
+      // Set visualization if available
+      if (data.result_visualization) {
+        setResultVisualization(data.result_visualization);
+      }
       
       // Refresh history after generating a new query
       fetchHistory();
@@ -189,11 +217,65 @@ const App: React.FC = () => {
     }
   };
 
+  const handleExecuteQuery = async (): Promise<void> => {
+    if (!currentQueryId) return;
+    
+    setExecuting(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/execute_sql`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query_id: currentQueryId,
+          schema_name: selectedSchema
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setQueryResults(data.results);
+      setResultVisualization(data.visualization);
+      
+      // Refresh history after executing
+      fetchHistory();
+    } catch (err: any) {
+      setError(`Failed to execute query: ${err.message}`);
+    } finally {
+      setExecuting(false);
+    }
+  };
+
   const loadFromHistory = (historyItem: QueryHistoryType): void => {
     setQuestion(historyItem.question);
     setSql(historyItem.sql);
     setModelUsed(historyItem.model_used);
     setExecutionTime(historyItem.execution_time);
+    setCurrentQueryId(historyItem.id);
+    
+    // Load reasoning steps if available
+    if (historyItem.reasoning_steps) {
+      setReasoningSteps(historyItem.reasoning_steps);
+    } else {
+      setReasoningSteps([]);
+    }
+    
+    // Load results if available
+    if (historyItem.results) {
+      setQueryResults(historyItem.results);
+    } else {
+      setQueryResults("");
+    }
+    
+    // Load visualization if available
+    if (historyItem.visualization) {
+      setResultVisualization(historyItem.visualization);
+    } else {
+      setResultVisualization("");
+    }
+    
     // Close the history panel on mobile after selecting
     if (window.innerWidth <= 768) {
       setShowHistoryPanel(false);
@@ -261,89 +343,129 @@ const App: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <div className="container py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Schema panel - hidden on mobile unless toggled */}
-            <div className={`${showSchemaPanel ? 'block' : 'hidden'} lg:block lg:col-span-3`}>
-              <SchemaSelector
+        <main className="container py-6 grid gap-6 lg:grid-cols-12">
+          {/* Sidebar (Schema + History) */}
+          <aside className={`lg:col-span-3 lg:block ${(showSchemaPanel || showHistoryPanel) ? 'block' : 'hidden'} space-y-6`}>
+            {(showSchemaPanel || !showHistoryPanel || window.innerWidth > 768) && (
+              <SchemaSelector 
                 schemas={schemas}
                 selectedSchema={selectedSchema}
                 setSelectedSchema={setSelectedSchema}
                 schemaDefinition={schemaDefinition}
               />
-            </div>
-
-            {/* Main content area */}
-            <div className="lg:col-span-6 space-y-6">
-              {/* Query form */}
-              <QueryForm
-                question={question}
-                setQuestion={setQuestion}
-                handleSubmit={handleSubmit}
-                loading={loading}
-                selectedSchema={selectedSchema}
-                exampleQueries={EXAMPLE_QUERIES}
-              />
-
-              {/* Error message */}
-              {error && (
-                <div className="bg-destructive/10 border-l-4 border-destructive p-4 rounded">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-destructive" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Results */}
-              {sql && !loading && (
-                <div className="space-y-6">
-                  <SQLDisplay 
-                    sql={sql} 
-                    modelUsed={modelUsed} 
-                    executionTime={executionTime} 
-                  />
-
-                  {explanation && (
-                    <InfoCard
-                      title="SQL Explanation"
-                      content={explanation}
-                      icon="explanation"
-                    />
-                  )}
-
-                  {visualization && (
-                    <InfoCard
-                      title="Visualization Recommendation"
-                      content={visualization}
-                      icon="visualization"
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* History panel - hidden on mobile unless toggled */}
-            <div className={`${showHistoryPanel ? 'block' : 'hidden'} lg:block lg:col-span-3`}>
-              <QueryHistory
+            )}
+            
+            {(showHistoryPanel || window.innerWidth > 768) && (
+              <QueryHistory 
                 history={queryHistory}
                 loadFromHistory={loadFromHistory}
+                activeQueryId={currentQueryId}
+              />
+            )}
+          </aside>
+
+          {/* Main content area */}
+          <div className={`${(showSchemaPanel || showHistoryPanel) ? 'hidden' : 'block'} lg:block lg:col-span-9 space-y-6`}>
+            {/* Options Row */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="includeReasoning"
+                  checked={includeReasoning}
+                  onChange={(e) => setIncludeReasoning(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label htmlFor="includeReasoning" className="text-sm">Show reasoning steps</label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="executeQuery"
+                  checked={executeQuery}
+                  onChange={(e) => setExecuteQuery(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label htmlFor="executeQuery" className="text-sm">Auto-execute query</label>
+              </div>
+            </div>
+
+            {/* Query input form */}
+            <QueryForm 
+              question={question}
+              setQuestion={setQuestion}
+              handleSubmit={handleSubmit}
+              loading={loading}
+              selectedSchema={selectedSchema}
+              exampleQueries={EXAMPLE_QUERIES}
+            />
+
+            {/* Error display */}
+            {error && (
+              <div className="p-4 border border-red-500 bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 rounded-md">
+                <p>{error}</p>
+              </div>
+            )}
+
+            {/* SQL Result display */}
+            {sql && (
+              <div className="h-[500px]">
+                <SQLDisplay 
+                  sql={sql} 
+                  modelUsed={modelUsed}
+                  executionTime={executionTime}
+                  explanation={explanation}
+                  reasoningSteps={reasoningSteps}
+                  results={queryResults}
+                  visualization={resultVisualization}
+                  onExecuteQuery={handleExecuteQuery}
+                  isExecuting={executing}
+                />
+              </div>
+            )}
+
+            {/* Feature Cards */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              <InfoCard 
+                title="Step-by-Step Reasoning"
+                description="See the AI's thought process as it breaks down your question into logical steps to construct the SQL query."
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                }
+              />
+              <InfoCard 
+                title="Query Execution"
+                description="Execute generated SQL queries against a sample database to verify results and understand the output."
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                }
+              />
+              <InfoCard 
+                title="Automatic Visualization"
+                description="Get instant data visualizations from query results to better understand relationships in your data."
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                }
               />
             </div>
           </div>
-        </div>
+        </main>
 
         {/* Footer */}
-        <footer className="border-t">
-          <div className="container py-4 text-center">
+        <footer className="border-t mt-12">
+          <div className="container py-4 flex justify-between items-center">
             <p className="text-sm text-muted-foreground">
-              Created for FutureHack 2023 • SQL generation powered by {modelUsed || "Llama-3-SQL-Coder"} via HuggingFace Inference API
+              Powered by LLaMA 3 Coder 8B • Natural Language to SQL AI
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Using model: {modelUsed}
             </p>
           </div>
         </footer>
